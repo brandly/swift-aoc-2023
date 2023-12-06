@@ -44,7 +44,25 @@ func parse2(_ input: String) -> Race {
 
 func part2(_ input: String) -> Int {
   let race = parse2(input)
-  return (0...race.time).map({ $0 * (race.time - $0) }).filter({ $0 > race.distance }).count
+
+  var min = 0
+  for i in (0...race.time) {
+    let distance = i * (race.time - i)
+    if distance > race.distance {
+      min = i
+      break
+    }
+  }
+
+  var max = 0
+  for i in (0...race.time).reversed() {
+    let distance = i * (race.time - i)
+    if distance > race.distance {
+      max = i
+      break
+    }
+  }
+  return (min...max).count
 }
 
 assert(part2(example) == 71503)
