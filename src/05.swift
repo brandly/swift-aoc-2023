@@ -127,3 +127,112 @@ func part1(input: String) -> Int {
 
 assert(part1(input: example) == 35)
 print(part1(input: inputFile))
+
+func groupIntoTuples(_ array: [Int]) -> [(Int, Int)] {
+  var result: [(Int, Int)] = []
+  for i in stride(from: 0, to: array.count - 1, by: 2) {
+    let tuple = (array[i], array[i + 1])
+    result.append(tuple)
+  }
+  return result
+}
+
+struct Range {
+  let start: Int
+  let end: Int
+}
+
+struct Shift {
+  let range: Range
+  let offset: Int
+}
+
+func mappingToShifts(_ mapping: Mapping) -> [[Shift]] {
+  [
+    mapping.seedToSoil,
+    mapping.soilToFertilizer,
+    mapping.fertilizerToWater,
+    mapping.waterToLight,
+    mapping.lightToTemperature,
+    mapping.temperatureToHumidity,
+    mapping.humidityToLocation,
+  ].map({
+    $0.map({
+      Shift(
+        range: Range(start: $0.sourceRangeStart, end: $0.sourceRangeStart + $0.rangeLength),
+        offset: $0.destinationRangeStart - $0.sourceRangeStart)
+    })
+  })
+}
+
+func applyShift(_ range: Range, _ shift: Shift) -> Range {
+  Range(start: range.start + shift.offset, end: range.end + shift.offset)
+}
+
+func convert(_ r: Range, shifts: [Shift]) -> [Range] {
+  var result: [Range] = []
+  var rangesToHandle = [r]
+
+  while rangesToHandle.count > 0 {
+    let range = rangesToHandle.removeFirst()
+    var partial: [Range] = []
+
+    for shift in shifts {
+      if range.start >= shift.range.start && range.end <= shift.range.end {
+        // print("total overlap", range, shift)
+        partial.append(applyShift(range, shift))
+        break
+      } else if range.end >= shift.range.start && range.end <= shift.range.end {
+        // print("tail overlap", range, shift)
+        let tail = Range(start: shift.range.start, end: range.end)
+        let head = Range(start: range.start, end: shift.range.start - 1)
+        partial.append(applyShift(tail, shift))
+        rangesToHandle.append(head)
+        break
+      } else if range.start >= shift.range.start && range.start <= shift.range.end {
+        // print("head overlap", range, shift)
+        assert(shift.range.end < range.end)
+        let head = Range(start: range.start, end: shift.range.end)
+        let tail = Range(start: shift.range.end + 1, end: range.end)
+        partial.append(applyShift(head, shift))
+        rangesToHandle.append(tail)
+        break
+      } else if range.start <= shift.range.start && range.end > shift.range.end {
+        // print("triad contained within range", range, shift)
+        let head = Range(start: range.start, end: shift.range.start - 1)
+        let overlap = shift.range
+        let tail = Range(start: shift.range.end + 1, end: range.end)
+        partial.append(applyShift(overlap, shift))
+        rangesToHandle.append(head)
+        rangesToHandle.append(tail)
+        break
+      } else {
+        assert(range.end < shift.range.start || range.start > shift.range.end)
+      }
+    }
+
+    if partial.count > 0 {
+      result += partial
+    } else {
+      // Any source numbers that aren't mapped correspond to the same destination number.
+      result.append(range)
+    }
+  }
+
+  return result
+}
+
+func part2(input: String) -> Int {
+  let (seeds, mapping) = parse(input: input)
+
+  let shiftSets = mappingToShifts(mapping)
+  var ranges = groupIntoTuples(seeds).map({ Range(start: $0.0, end: $0.0 + $0.1 - 1) })
+
+  for shifts in shiftSets {
+    ranges = ranges.flatMap({ convert($0, shifts: shifts) })
+  }
+
+  return ranges.map({ $0.start }).min()!
+}
+assert(part2(input: example) == 46)
+print(part2(input: inputFile))
