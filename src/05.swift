@@ -140,6 +140,29 @@ func groupIntoTuples(_ array: [Int]) -> [(Int, Int)] {
 struct Range {
   let start: Int
   let end: Int
+
+  static func + (left: Range, right: Int) -> Range {
+    Range(start: left.start + right, end: left.end + right)
+  }
+
+  func isValid() -> Bool {
+    self.start <= self.end
+  }
+
+  func intersection(_ other: Range) -> Range? {
+    let range = Range(start: max(self.start, other.start), end: min(self.end, other.end))
+    return range.isValid() ? range : nil
+  }
+
+  func before(_ other: Range) -> Range? {
+    let range = Range(start: self.start, end: other.start - 1)
+    return range.isValid() ? range : nil
+  }
+
+  func after(_ other: Range) -> Range? {
+    let range = Range(start: other.end + 1, end: self.end)
+    return range.isValid() ? range : nil
+  }
 }
 
 struct Shift {
@@ -165,10 +188,6 @@ func mappingToShifts(_ mapping: Mapping) -> [[Shift]] {
   })
 }
 
-func applyShift(_ range: Range, _ shift: Shift) -> Range {
-  Range(start: range.start + shift.offset, end: range.end + shift.offset)
-}
-
 func convert(_ r: Range, shifts: [Shift]) -> [Range] {
   var result: [Range] = []
   var rangesToHandle = [r]
@@ -178,36 +197,15 @@ func convert(_ r: Range, shifts: [Shift]) -> [Range] {
     var partial: [Range] = []
 
     for shift in shifts {
-      if range.start >= shift.range.start && range.end <= shift.range.end {
-        // print("total overlap", range, shift)
-        partial.append(applyShift(range, shift))
+      if let intersection = range.intersection(shift.range) {
+        if let before = range.before(shift.range) {
+          rangesToHandle.append(before)
+        }
+        if let after = range.after(shift.range) {
+          rangesToHandle.append(after)
+        }
+        partial.append(intersection + shift.offset)
         break
-      } else if range.end >= shift.range.start && range.end <= shift.range.end {
-        // print("tail overlap", range, shift)
-        let tail = Range(start: shift.range.start, end: range.end)
-        let head = Range(start: range.start, end: shift.range.start - 1)
-        partial.append(applyShift(tail, shift))
-        rangesToHandle.append(head)
-        break
-      } else if range.start >= shift.range.start && range.start <= shift.range.end {
-        // print("head overlap", range, shift)
-        assert(shift.range.end < range.end)
-        let head = Range(start: range.start, end: shift.range.end)
-        let tail = Range(start: shift.range.end + 1, end: range.end)
-        partial.append(applyShift(head, shift))
-        rangesToHandle.append(tail)
-        break
-      } else if range.start <= shift.range.start && range.end > shift.range.end {
-        // print("triad contained within range", range, shift)
-        let head = Range(start: range.start, end: shift.range.start - 1)
-        let overlap = shift.range
-        let tail = Range(start: shift.range.end + 1, end: range.end)
-        partial.append(applyShift(overlap, shift))
-        rangesToHandle.append(head)
-        rangesToHandle.append(tail)
-        break
-      } else {
-        assert(range.end < shift.range.start || range.start > shift.range.end)
       }
     }
 
