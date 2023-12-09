@@ -40,7 +40,8 @@ func clean(_ str: Substring) -> String {
 
 func parse(_ input: String) -> Puzzle {
   let splits = input.components(separatedBy: "\n\n")
-  let graph = splits[1].split(separator: "\n").reduce(into: [:]) { (accum: inout [String: (String, String)], str: Substring) in
+  let graph = splits[1].split(separator: "\n").reduce(into: [:]) {
+    (accum: inout [String: (String, String)], str: Substring) in
     let uh = str.split(separator: "=")
     let withoutParens = uh[1].trimmingCharacters(in: CharacterSet(charactersIn: "() "))
     let pair = withoutParens.split(separator: ",")
@@ -69,7 +70,7 @@ func simulate(_ puzzle: Puzzle, start: String, goal: (String) -> Bool) -> Int {
 }
 
 func part1(_ input: String) -> Int {
-  simulate(parse(input), start: "AAA", goal: { $0 == "ZZZ"})
+  simulate(parse(input), start: "AAA", goal: { $0 == "ZZZ" })
 }
 
 assert(part1(example) == 2)
@@ -99,7 +100,7 @@ func lcm(_ a: Int, _ b: Int) -> Int {
 
 func part2(_ input: String) -> Int {
   let puzzle = parse(input)
-  let starts = puzzle.graph.keys.filter({ $0.hasSuffix("A" )})
+  let starts = puzzle.graph.keys.filter({ $0.hasSuffix("A") })
   let steps = starts.map({ simulate(puzzle, start: $0, goal: { $0.hasSuffix("Z") }) })
   return steps.reduce(1, lcm)
 }
