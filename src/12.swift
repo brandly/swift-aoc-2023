@@ -42,27 +42,9 @@ func parse(_ input: String) -> [Row] {
   })
 }
 
-func contiguousGroups(_ springs: [Spring]) -> [Int] {
-  var progress = 0
-  var groups: [Int] = []
-  for spring in springs {
-    if spring == Spring.damaged {
-      progress += 1
-    } else if progress > 0 {
-      groups.append(progress)
-      progress = 0
-    }
-  }
-  if progress > 0 {
-    groups.append(progress)
-  }
-  return groups
-}
-
 func part1(_ input: String) -> Int {
   let rows = parse(input)
-  let counts = rows.map({ possibilities($0).count })
-  print("ZZZ counts!", counts)
+  let counts = rows.map({ possibilities($0) })
   return counts.reduce(0, +)
 }
 
@@ -92,22 +74,6 @@ func expand(_ rows: [Row]) -> [Row] {
   })
 }
 
-func extend(_ springs: [Spring], _ progress: [Spring]) -> [[Spring]] {
-  if springs.count == progress.count {
-    print("called extend but already reached limit")
-    assert(false)
-  }
-  let next = springs[progress.count]
-  switch next {
-  case Spring.operational:
-    return [progress + [next]]
-  case Spring.damaged:
-    return [progress + [next]]
-  case Spring.unknown:
-    return [progress + [Spring.operational], progress + [Spring.damaged]]
-  }
-}
-
 func toString(_ springs: [Spring]) -> String {
   springs.map({ spring in
     switch spring {
@@ -118,54 +84,56 @@ func toString(_ springs: [Spring]) -> String {
   }).joined()
 }
 
-func possibilities(_ row: Row) -> [[Spring]] {
-  // BFS + pruning
-  var inProgress: [[Spring]] = [[]]
-  for _ in 0..<row.springs.count {
-    inProgress = inProgress.flatMap({ extend(row.springs, $0) }).filter({ (springs: [Spring]) in
-      let groups = contiguousGroups(springs)
-      if groups.count == 0 {
-        return true
-      }
-      if groups.count > row.groups.count {
-        return false
-      }
-      let relevantGroups = row.groups.prefix(groups.count)
-      var zipped = Array(zip(groups, relevantGroups))
-      let last = zipped.removeLast()
+func possibilities(_ row: Row) -> Int {
+  var springs = row.springs
+  springs.append(Spring.operational)
+  var cache: [Int: [Int: Int]] = [:]
+  return possibilitesHelper(springs, row.groups, &cache)
+}
 
-      let remainingGroups = Array(row.groups.dropFirst(groups.count))
-      let remainingSprings = Array(row.springs.dropFirst(springs.count))
-      let enoughRemaining =
-        remainingSprings.count >= (remainingGroups.reduce(0, +) + remainingGroups.count) - 1
-      // print("remainingGroups", remainingGroups, "remainingSprings", toString(remainingSprings), "enoughRemaining", enoughRemaining)
-
-      let countsAlign =
-        zipped.allSatisfy({ $0.0 == $0.1 })
-        && (springs.last == Spring.damaged ? last.0 <= last.1 : last.0 == last.1)
-      let result = countsAlign && enoughRemaining
-      // if !result {
-      //   print("prune!", toString(springs))
-      // }
-
-      return result
-    })
-    // print("inProgress")
-    // for (i, springs) in inProgress.enumerated() {
-    //   print("  ", i + 1, toString(springs))
-    // }
+func possibilitesHelper(_ springs: [Spring], _ groups: [Int], _ cache: inout [Int: [Int: Int]])
+  -> Int
+{
+  // no more to find
+  if groups.count == 0 {
+    // if more are damaged, we've reached a dead end
+    // otherwise we have no damaged left, so 1 possibility
+    return springs.contains(Spring.damaged) ? 0 : 1
   }
 
-  return inProgress
+  // make sure we have enough springs left
+  if springs.count < groups.reduce(0, +) + groups.count {
+    return 0
+  }
+
+  if let groupCache = cache[groups.count - 1], let cached = groupCache[springs.count - 1] {
+    return cached
+  }
+  var result = 0
+  if springs[0] != Spring.damaged {
+    // handle .operational
+    result += possibilitesHelper(Array(springs.dropFirst()), groups, &cache)
+  }
+  let nextGroup = groups[0]
+  if !springs.prefix(nextGroup).contains(Spring.operational) && springs[nextGroup] != Spring.damaged
+  {
+    // handle damaged
+    result += possibilitesHelper(
+      Array(springs.dropFirst(nextGroup + 1)), Array(groups.dropFirst()), &cache)
+  }
+
+  if cache[groups.count - 1] == nil {
+    cache[groups.count - 1] = [:]
+  }
+  cache[groups.count - 1]![springs.count - 1] = result
+  return result
 }
 
 func part2(_ input: String) -> Int {
   let rows = parse(input)
-
   let expanded = expand(rows)
-  // print(rows)
-  return expanded.map({ possibilities($0).count }).reduce(0, +)
+  return expanded.map({ possibilities($0) }).reduce(0, +)
 }
 
-// assert(part2(example) == 525152)
+assert(part2(example) == 525152)
 print(part2(inputFile))
