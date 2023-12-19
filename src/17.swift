@@ -103,8 +103,7 @@ struct Best {
   }
 }
 
-func part1(_ input: String) -> Int {
-  let city = parse(input)
+func minimizeHeatLoss(_ city: City, movements: ClosedRange<Int>) -> Int {
   let start = Coordinate(x: 0, y: 0)
   let goal = Coordinate(x: city.width - 1, y: city.height - 1)
   var bestToGoal = Int.max
@@ -134,7 +133,17 @@ func part1(_ input: String) -> Int {
       var coords = state.coords
       var heat = state.heat
       let move = direction.toCoords()
-      for _ in 1...3 {
+
+      for _ in 1..<movements.lowerBound {
+        coords = coords + move
+        // stepped out of city
+        if !city.blocks.keys.contains(coords) {
+          break
+        }
+        heat += city.blocks[coords]!
+      }
+
+      for _ in movements {
         coords = coords + move
         // stepped out of city
         if !city.blocks.keys.contains(coords) {
@@ -154,6 +163,22 @@ func part1(_ input: String) -> Int {
 
   return bestToGoal
 }
+
+func part1(_ input: String) -> Int {
+  let city = parse(input)
+  return minimizeHeatLoss(city, movements: 1...3)
+}
+
+assert(part1(example) == 102)
+print(part1(inputFile))
+
+func part2(_ input: String) -> Int {
+  let city = parse(input)
+  return minimizeHeatLoss(city, movements: 4...10)
+}
+
+assert(part2(example) == 94)
+print(part2(inputFile))
 
 /// This is a simple Heap implementation which can be used as a priority queue.
 public class Heap<T: Comparable> {
@@ -237,6 +262,3 @@ public class Heap<T: Comparable> {
     return item
   }
 }
-
-assert(part1(example) == 102)
-print(part1(inputFile))
